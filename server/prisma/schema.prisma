@@ -1,0 +1,113 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  role         Role      @default(USER)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  networks     Network[]
+}
+
+model Network {
+  id               String            @id @default(cuid())
+  name             String
+  description      String?
+  ownerId          String?
+  owner            User?             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  nodes            Node[]
+  edges            Edge[]
+  monitoringEvents MonitoringEvent[]
+}
+
+enum NodeType {
+  INTERNET
+  ROUTER
+  FIREWALL
+  SERVER
+  DATABASE
+  WORKSTATION
+  IOT
+  CLOUD
+  ENDPOINT
+}
+
+enum Criticality {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum NodeStatus {
+  ACTIVE
+  DEGRADED
+  OFFLINE
+}
+
+model Node {
+  id                 String      @id @default(cuid())
+  networkId          String
+  network            Network     @relation(fields: [networkId], references: [id], onDelete: Cascade)
+  name               String
+  type               NodeType
+  criticality        Criticality
+  vulnerabilityScore Float
+  positionX          Float?
+  positionY          Float?
+  status             NodeStatus  @default(ACTIVE)
+  lastSeen           DateTime?
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+  outgoingEdges      Edge[]      @relation("EdgeSource")
+  incomingEdges      Edge[]      @relation("EdgeTarget")
+}
+
+enum EdgeStatus {
+  ACTIVE
+  ISOLATED
+}
+
+model Edge {
+  id           String     @id @default(cuid())
+  networkId    String
+  network      Network    @relation(fields: [networkId], references: [id], onDelete: Cascade)
+  sourceNodeId String
+  sourceNode   Node       @relation("EdgeSource", fields: [sourceNodeId], references: [id], onDelete: Cascade)
+  targetNodeId String
+  targetNode   Node       @relation("EdgeTarget", fields: [targetNodeId], references: [id], onDelete: Cascade)
+  cost         Float
+  risk         Float
+  directed     Boolean    @default(false)
+  status       EdgeStatus @default(ACTIVE)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model MonitoringEvent {
+  id             String    @id @default(cuid())
+  networkId      String
+  network        Network   @relation(fields: [networkId], references: [id], onDelete: Cascade)
+  entityType     String
+  entityId       String
+  previousStatus String
+  currentStatus  String
+  eventType      String
+  timestamp      DateTime  @default(now())
+}
